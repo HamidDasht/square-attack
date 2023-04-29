@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import torchvision
 from torchvision import transforms
 from torchvision.datasets import ImageFolder
 from torch.utils.data import DataLoader
@@ -15,17 +16,26 @@ def load_mnist(n_ex):
     return x_test[:n_ex], y_test[:n_ex]
 
 
-def load_cifar10(n_ex):
-    from madry_cifar10.cifar10_input import CIFAR10Data
-    cifar = CIFAR10Data('madry_cifar10/cifar10_data')
-    x_test, y_test = cifar.eval_data.xs.astype(np.float32), cifar.eval_data.ys
-    x_test = np.transpose(x_test, axes=[0, 3, 1, 2])
-    return x_test[:n_ex], y_test[:n_ex]
+def load_cifar10(n_ex, size=32):
+    #from madry_cifar10.cifar10_input import CIFAR10Data
+    #cifar = CIFAR10Data('madry_cifar10/cifar10_data')
+    #x_test, y_test = cifar.eval_data.xs.astype(np.float32), cifar.eval_data.ys
+    #x_test = np.transpose(x_test, axes=[0, 3, 1, 2])
+    #return x_test[:n_ex], y_test[:n_ex]
+    CIFAR_SL = size
+    dataset = torchvision.datasets.CIFAR10(root='./', download=True, train=False, transform=transforms.Compose([
+        transforms.Resize(CIFAR_SL),
+        transforms.CenterCrop(CIFAR_SL),
+        transforms.ToTensor(),
+    ]))
 
+    loader = DataLoader(dataset, n_ex, True)
+    x_test, y_test = next(iter(loader))
+    return np.array(x_test, dtype=np.float32), np.array(y_test)
 
 def load_imagenet(n_ex, size=224):
     IMAGENET_SL = size
-    IMAGENET_PATH = "/scratch/maksym/imagenet/val_orig"
+    IMAGENET_PATH = "./imagenet-val"
     imagenet = ImageFolder(IMAGENET_PATH,
                            transforms.Compose([
                                transforms.Resize(IMAGENET_SL),

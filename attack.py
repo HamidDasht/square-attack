@@ -203,6 +203,8 @@ def square_attack_linf(model, x, y, corr_classified, eps, n_iters, p_init, metri
     c, h, w = x.shape[1:]
     n_features = c*h*w
     n_ex_total = x.shape[0]
+    
+    # Select only those samples that are classified correctly
     x, y = x[corr_classified], y[corr_classified]
 
     # [c, 1, w], i.e. vertical stripes work best for untargeted attacks
@@ -281,7 +283,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     args.loss = 'margin_loss' if not args.targeted else 'cross_entropy'
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
+    #os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
     dataset = 'mnist' if 'mnist' in args.model else 'cifar10' if 'cifar10' in args.model else 'imagenet'
     timestamp = str(datetime.now())[:-7]
     hps_str = '{} model={} dataset={} attack={} n_ex={} eps={} p={} n_iter={}'.format(
@@ -289,6 +291,8 @@ if __name__ == '__main__':
     args.eps = args.eps / 255.0 if dataset == 'imagenet' else args.eps  # for mnist and cifar10 we leave as it is
     batch_size = data.bs_dict[dataset]
     model_type = 'pt' if 'pt_' in args.model else 'tf'
+    if args.model == 'pt_resnet18':
+      dataset = 'cifar10'
     n_cls = 1000 if dataset == 'imagenet' else 10
     gpu_memory = 0.5 if dataset == 'mnist' and args.n_ex > 1000 else 0.15 if dataset == 'mnist' else 0.99
 
@@ -298,7 +302,10 @@ if __name__ == '__main__':
     log = utils.Logger(log_path)
     log.print('All hps: {}'.format(hps_str))
 
-    if args.model != 'pt_inception':
+    if args.model == 'pt_resnet18':
+        x_test, y_test = data.datasets_dict['cifar10'](args.n_ex)
+
+    elif args.model != 'pt_inception':
         x_test, y_test = data.datasets_dict[dataset](args.n_ex)
     else:  # exception for inception net on imagenet -- 299x299 images instead of 224x224
         x_test, y_test = data.datasets_dict[dataset](args.n_ex, size=299)

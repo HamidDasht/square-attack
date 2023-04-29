@@ -1,5 +1,7 @@
 import torch
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
+from resnet18.resnet import ResNet18
+tf.disable_v2_behavior()
 import numpy as np
 import math
 import utils
@@ -8,8 +10,8 @@ from torch.nn import DataParallel
 from madry_mnist.model import Model as madry_model_mnist
 from madry_cifar10.model import Model as madry_model_cifar10
 from logit_pairing.models import LeNet as lp_model_mnist, ResNet20_v2 as lp_model_cifar10
-from post_avg.postAveragedModels import pa_resnet110_config1 as post_avg_cifar10_resnet
-from post_avg.postAveragedModels import pa_resnet152_config1 as post_avg_imagenet_resnet
+#from post_avg.postAveragedModels import pa_resnet110_config1 as post_avg_cifar10_resnet
+#from post_avg.postAveragedModels import pa_resnet152_config1 as post_avg_imagenet_resnet
 
 
 class Model:
@@ -88,7 +90,19 @@ class ModelPT(Model):
     """
     def __init__(self, model_name, batch_size, gpu_memory):
         super().__init__(batch_size, gpu_memory)
-        if model_name in ['pt_vgg', 'pt_resnet', 'pt_inception', 'pt_densenet']:
+        if model_name == 'pt_resnet18':
+            model = model_class_dict[model_name]()
+            model = model.cuda()
+            model = DataParallel(model)
+            checkpoint = torch.load(model_path_dict[model_name])
+            model.load_state_dict(checkpoint['net'])
+            model.float()
+            self.mean = np.reshape([0, 0, 0], [1, 3, 1, 1])
+            self.std = np.reshape([1, 1, 1], [1, 3, 1, 1])
+            #self.mean = np.reshape([0.4914, 0.4822, 0.4465], [1, 3, 1, 1])
+            #self.std = np.reshape([0.247, 0.243, 0.261], [1, 3, 1, 1])
+
+        elif model_name in ['pt_vgg', 'pt_resnet', 'pt_inception', 'pt_densenet']:
             model = model_class_dict[model_name](pretrained=True)
             self.mean = np.reshape([0.485, 0.456, 0.406], [1, 3, 1, 1])
             self.std = np.reshape([0.229, 0.224, 0.225], [1, 3, 1, 1])
@@ -133,10 +147,12 @@ model_path_dict = {'madry_mnist_robust': 'madry_mnist/models/robust',
                    'lsq_mnist': 'logit_pairing/models/lsq_mnist',
                    'clp_cifar10': 'logit_pairing/models/clp_cifar10',
                    'lsq_cifar10': 'logit_pairing/models/lsq_cifar10',
-                   'pt_post_avg_cifar10': 'post_avg/trainedModel/resnet110.th'
+                   'pt_post_avg_cifar10': 'post_avg/trainedModel/resnet110.th',
+                   'pt_resnet18': 'resnet18/ckpt.pth'
                    }
 model_class_dict = {'pt_vgg': torch_models.vgg16_bn,
                     'pt_resnet': torch_models.resnet50,
+                    'pt_resnet18': ResNet18,
                     'pt_inception': torch_models.inception_v3,
                     'pt_densenet': torch_models.densenet121,
                     'madry_mnist_robust': madry_model_mnist,
@@ -145,8 +161,8 @@ model_class_dict = {'pt_vgg': torch_models.vgg16_bn,
                     'lsq_mnist': lp_model_mnist,
                     'clp_cifar10': lp_model_cifar10,
                     'lsq_cifar10': lp_model_cifar10,
-                    'pt_post_avg_cifar10': post_avg_cifar10_resnet,
-                    'pt_post_avg_imagenet': post_avg_imagenet_resnet,
+#                    'pt_post_avg_cifar10': post_avg_cifar10_resnet,
+#                    'pt_post_avg_imagenet': post_avg_imagenet_resnet,
                     }
 all_model_names = list(model_class_dict.keys())
 
